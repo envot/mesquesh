@@ -1,16 +1,12 @@
-before_script: 
-    - 'docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY'
-
-mesquesh_docker_master:
-    image: docker:latest 
-    script:
-        - 'docker build --no-cache -t $CI_REGISTRY_IMAGE
-            --build-arg https_proxy="$HTTPS_PROXY"
-            --build-arg http_proxy="$HTTP_PROXY"
-            --build-arg no_proxy="$no_proxy" 
-            .'
-        - 'docker push $CI_REGISTRY_IMAGE'
-    environment:
-        name: production
-    only:
-        - master
+docker-build-master:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE" .
+    - docker push "$CI_REGISTRY_IMAGE"
+  only:
+    - master
