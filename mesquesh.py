@@ -9,6 +9,7 @@ import readline
 import time
 import argparse
 import sys
+import json
 
 
 parser = argparse.ArgumentParser(description= 'Python program to control MQTT topics.')
@@ -115,7 +116,7 @@ readline.set_completer_delims(old_delims)
 
 try:
     while True:
-        optionsArray = ['help', 'rmdir', 'reload', 'print']
+        optionsArray = ['help', 'rmdir', 'reload', 'print', 'backup']
         for i,val in enumerate(map(str, client.data.keys())):
             optionsArray.append(val)
         
@@ -134,6 +135,10 @@ try:
                 print("No topic given...")
         if inputArray[0] == "reload":
             reload_func(client)
+        if inputArray[0] == "backup":
+            with open('backup.json', 'w') as outfile:
+                json.dump(client.data, outfile, indent=4)
+            print("Backuped data to 'backup.json'.")
         if inputArray[0] == "print":
             print_change(client, inputArray)
         if inputArray[0] == "":
