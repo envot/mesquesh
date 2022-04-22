@@ -1,4 +1,4 @@
-FROM python:3.7.9-alpine3.12
+FROM python:3.9.12-alpine3.15
 
 MAINTAINER Klemens Schueppert "schueppi@envot.io"
 
@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./mesquesh.py /mesquesh/mesquesh.py
 
 ENV PYTHONUNBUFFERED TRUE
-ENV HOST localhost
+ENV HOST broker
 ENV PORT 1883
 
 ENTRYPOINT python mesquesh.py -host ${HOST} -port ${PORT}
