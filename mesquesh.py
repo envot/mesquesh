@@ -92,16 +92,22 @@ class MyCompleter(object):  # Custom completer
         self.options = sorted(options)
 
     def complete(self, text, state):
-        #print text
-        #print self.options
         if state == 0:  # on first trigger, build possible matches
             if text:  # cache matches (entries that start with entered text)
-                self.matches = [s for s in self.options 
-                                    if text in s]
+                self.matches = []
+                for option in self.options:
+                    if text in option[0:len(text)]:
+                        if option[len(text):].find('/') == -1:
+                            self.matches.append(option)
+                        else:
+                            lenslash = len(text)+option[len(text):].find('/')+1
+                            if not option[0:lenslash] in self.matches:
+                                self.matches.append(option[0:lenslash])
             else:  # no text entered, all matches possible
-                self.matches = self.options[:]
-
-        # return match indexed by state
+                self.matches = ['help', 'rmdir', 'reload', 'print', 'backup']
+                for option in self.options:
+                    if not option.split('/')[0] in self.matches:
+                        self.matches.append(option.split('/')[0])
         try: 
             return self.matches[state]
         except IndexError:
