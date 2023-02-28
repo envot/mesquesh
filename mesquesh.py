@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 # Python program to control MQTT topics.
 # Klemens Schueppert : schueppi@envot.io
 
-import paho.mqtt.client as mqttClient
 import readline
 import time
 import argparse
 import sys
 import json
+import paho.mqtt.client as mqttClient
 
 
 parser = argparse.ArgumentParser(description= 'Python program to control MQTT topics.')
@@ -50,8 +50,11 @@ def print_topic_payload(client, topic, payload):
             + color_text(payload, 'red'))
 
 def on_message(client, userdata, message):
-    client.data[message.topic] = message.payload.decode('ascii')
-    printPayload = message.payload.decode('ascii')
+    try:
+        client.data[message.topic] = message.payload.decode()
+    except:
+        client.data[message.topic] = str(message.payload)
+    printPayload = client.data[message.topic]
     if message.topic.split('/')[-1] == 'logs':
         printPayload = printPayload.split('\n')[-1]
     if client.printMessage:
@@ -90,6 +93,7 @@ def reload_func(client):
 class MyCompleter(object):  # Custom completer
     def __init__(self, options):
         self.options = sorted(options)
+        self.matches = []
 
     def complete(self, text, state):
         if state == 0:  # on first trigger, build possible matches
@@ -108,7 +112,7 @@ class MyCompleter(object):  # Custom completer
                 for option in self.options:
                     if not option.split('/')[0] in self.matches:
                         self.matches.append(option.split('/')[0])
-        try: 
+        try:
             return self.matches[state]
         except IndexError:
             return None
@@ -125,11 +129,11 @@ try:
         optionsArray = ['help', 'rmdir', 'reload', 'print', 'backup']
         for i,val in enumerate(map(str, client.data.keys())):
             optionsArray.append(val)
-        
+
         completer = MyCompleter(optionsArray)
         readline.set_completer(completer.complete)
         readline.parse_and_bind('tab: complete')
-        
+
         new_input = input_func("Input:")
         inputArray = new_input.split(' ')
         if inputArray[0] == "rmdir":
@@ -159,27 +163,26 @@ try:
             print("'exit', 'quit' or ctrl-c for program end.")
         if inputArray[0] in ["exit", "quit"]:
             break
-        else:
-            if len(inputArray) == 1 and not inputArray[0] =='':
-                for option in client.data:
-                    if inputArray[0] == option[:len(inputArray[0])]:
-                        print_topic_payload(client, option, client.data[option])
-            if inputArray[0] in client.data:
-                if len(inputArray) > 1:
-                    payload = ' '.join(inputArray[1:])
-                    if payload == '':
-                        print('Remove '+color_text(inputArray[0],'green')+'.')
-                    else:
-                        print('Set '+color_text(inputArray[0],'green')
-                            +' to '+color_text(payload,'red'))
-                    client.publish(inputArray[0], payload, retain=True)
-                    if payload == '':
-                        reload_func(client)
-            elif inputArray[0] not in optionsArray:
-                if len(inputArray) > 1:
-                    print('Create '+color_text(inputArray[0], 'green')
-                            +' with '+color_text(' '.join(inputArray[1:]), 'red'))
-                    client.publish(inputArray[0], ' '.join(inputArray[1:]), retain=True)
+        if len(inputArray) == 1 and not inputArray[0] =='':
+            for option in client.data:
+                if inputArray[0] == option[:len(inputArray[0])]:
+                    print_topic_payload(client, option, client.data[option])
+        if inputArray[0] in client.data:
+            if len(inputArray) > 1:
+                payload = ' '.join(inputArray[1:])
+                if payload == '':
+                    print('Remove '+color_text(inputArray[0],'green')+'.')
+                else:
+                    print('Set '+color_text(inputArray[0],'green')
+                        +' to '+color_text(payload,'red'))
+                client.publish(inputArray[0], payload, retain=True)
+                if payload == '':
+                    reload_func(client)
+        elif inputArray[0] not in optionsArray:
+            if len(inputArray) > 1:
+                print('Create '+color_text(inputArray[0], 'green')
+                        +' with '+color_text(' '.join(inputArray[1:]), 'red'))
+                client.publish(inputArray[0], ' '.join(inputArray[1:]), retain=True)
 
 except KeyboardInterrupt:
     pass
