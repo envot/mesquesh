@@ -44,8 +44,9 @@ def color_text(text, color='green'):
         +text
         +colorDict[color][1])
 
-def print_topic_payload(client, topic, payload):
-    print(color_text(topic, 'green')
+def print_topic_payload(client, topic, payload, skipCheck=False):
+    if (client.printDollars or not ('$' in topic) or skipCheck) and (len(payload) > 0):
+        print(color_text(topic, 'green')
             + ' : '
             + color_text(payload, 'red'))
 
@@ -67,11 +68,23 @@ client.connect(args.host, int(args.port))
 client.loop_start()
 client.data = {}
 client.printMessage = False
+client.printDollars = False
 
 def rmdir_func(foldername, optionsArray, client):
     for option in optionsArray:
         if foldername == option[:len(foldername)]:
             client.publish(option, "", retain=True)
+
+def find_func(targetArray, optionsArray, client):
+    for option in optionsArray:
+        if is_in(targetArray, option):
+            print_topic_payload(client, option, client.data[option])
+
+def is_in(targetArray, option):
+    for target in targetArray:
+        if not target in option:
+            return False
+    return True
 
 def print_change(client, inputArray):
     if len(inputArray) > 1:
@@ -81,8 +94,16 @@ def print_change(client, inputArray):
         if inputArray[1].lower() in ['false', 'off', '0']:
             client.printMessage = False
             return True
+        if inputArray[1].lower() in ['$']:
+            if client.printDollars:
+                client.printDollars = False
+                print('Do not show $ topics.')
+            else:
+                client.printDollars = True
+                print('Show $ topics.')
+            return True
         print('Could not handle:'+inputArray[1])
-    print('Write "print on" or "print off".')
+    print('Write "print on" or "print off" of "print $" for toogle $.')
 
 def reload_func(client):
     time.sleep(0.1)
@@ -117,7 +138,7 @@ class MyCompleter(object):  # Custom completer
         except IndexError:
             return None
 
-time.sleep(2)
+time.sleep(0.5)
 
 old_delims = readline.get_completer_delims()
 for string2remove in ['/', '-', '$']:
@@ -126,7 +147,7 @@ readline.set_completer_delims(old_delims)
 
 try:
     while True:
-        optionsArray = ['help', 'rmdir', 'reload', 'print', 'backup']
+        optionsArray = ['help', 'find', 'rmdir', 'reload', 'print', 'backup']
         for i,val in enumerate(map(str, client.data.keys())):
             optionsArray.append(val)
 
@@ -143,6 +164,11 @@ try:
                 reload_func(client)
             else:
                 print("No topic given...")
+        if inputArray[0] == "find":
+            if len(inputArray) > 1:
+                find_func(inputArray[1:], optionsArray, client)
+            else:
+                print("No search phrase given...")
         if inputArray[0] == "reload":
             reload_func(client)
         if inputArray[0] == "backup":
@@ -160,13 +186,13 @@ try:
             print("With 'print' you can enable and disable printing the messages.")
             print("'rmdir' removes entire folders of topics.")
             print("'reload' refreshes the topics.")
-            print("'exit', 'quit' or ctrl-c for program end.")
-        if inputArray[0] in ["exit", "quit"]:
+            print("':exit', ':quit', ':q' or ctrl-c for program end.")
+        if inputArray[0] in [":exit", ":quit", ":q"]:
             break
         if len(inputArray) == 1 and not inputArray[0] =='':
             for option in client.data:
                 if inputArray[0] == option[:len(inputArray[0])]:
-                    print_topic_payload(client, option, client.data[option])
+                    print_topic_payload(client, option, client.data[option], skipCheck=('$' in inputArray[0]))
         if inputArray[0] in client.data:
             if len(inputArray) > 1:
                 payload = ' '.join(inputArray[1:])
