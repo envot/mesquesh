@@ -12,6 +12,43 @@ import json
 import paho.mqtt.client as mqttClient
 
 
+import inquirer  # noqa
+from readchar import key
+
+def process_input(self, pressed):
+    question = self.question
+    if pressed in ['k', key.UP]:
+        if question.carousel and self.current == 0:
+            self.current = len(question.choices) - 1
+        else:
+            self.current = max(0, self.current - 1)
+        return
+    if pressed in ['j', key.DOWN]:
+        if question.carousel and self.current == len(question.choices) - 1:
+            self.current = 0
+        else:
+            self.current = min(len(self.question.choices) - 1, self.current + 1)
+        return
+    if pressed == key.ENTER:
+        value = self.question.choices[self.current]
+
+        if value == inquirer.render.console._other.GLOBAL_OTHER_CHOICE:
+            value = self.other_input()
+            if not value:
+                # Clear the print inquirer.text made, since the user didn't enter anything
+                print(self.terminal.move_up + self.terminal.clear_eol, end="")
+                return
+
+        raise inquirer.errors.EndOfInput(getattr(value, "value", value))
+
+    if pressed == key.CTRL_C:
+        raise KeyboardInterrupt()
+
+inquirer.render.console.List.process_input = process_input
+
+LAST_PRINTS = []
+PREFILL = ''
+
 parser = argparse.ArgumentParser(description= 'Python program to control MQTT topics.')
 parser.add_argument('-host', type=str, help='Host of MQTT Broker. Default: "localhost"')
 parser.add_argument('-port', type=str, help='Port of MQTT Broker. Default: 1883')
@@ -28,6 +65,16 @@ elif sys.version_info[0] == 3:
     input_func = input
 else:
     raise Exception('Python version not supported.')
+
+def input_with_prefill(prompt, text):
+    def hook():
+        readline.insert_text(text)
+        readline.redisplay()
+    readline.set_pre_input_hook(hook)
+    result = input_func(prompt)
+    readline.set_pre_input_hook()
+    return result
+
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -49,6 +96,7 @@ def print_topic_payload(client, topic, payload, skipCheck=False):
         print(color_text(topic, 'green')
             + ' : '
             + color_text(payload, 'red'))
+        return topic
 
 def on_message(client, userdata, message):
     try:
@@ -76,9 +124,13 @@ def rmdir_func(foldername, optionsArray, client):
             client.publish(option, "", retain=True)
 
 def find_func(targetArray, optionsArray, client):
+    global LAST_PRINTS
+    LAST_PRINTS = []
     for option in optionsArray:
         if is_in(targetArray, option):
-            print_topic_payload(client, option, client.data[option])
+            result = print_topic_payload(client, option, client.data[option])
+            if result != None:
+                LAST_PRINTS.append(result)
 
 def is_in(targetArray, option):
     for target in targetArray:
@@ -147,7 +199,7 @@ readline.set_completer_delims(old_delims)
 
 try:
     while True:
-        optionsArray = ['help', 'find', 'rmdir', 'reload', 'print', 'backup']
+        optionsArray = ['help', 'find', 'rmdir', 'reload', 'print', 'backup', 'select']
         for i,val in enumerate(map(str, client.data.keys())):
             optionsArray.append(val)
 
@@ -155,7 +207,8 @@ try:
         readline.set_completer(completer.complete)
         readline.parse_and_bind('tab: complete')
 
-        new_input = input_func("Input:")
+        new_input = input_with_prefill("Input:", PREFILL)
+        PREFILL = ''
         inputArray = new_input.split(' ')
         if inputArray[0] == "rmdir":
             if len(inputArray) > 1:
@@ -183,16 +236,33 @@ try:
         if inputArray[0] == "help":
             print("Read or modify directly MQTT topcis.")
             print("Use tab for auto completion.")
-            print("With 'print' you can enable and disable printing the messages.")
+            print("'backup' all data into 'backup.json'.")
+            print("'find' shows you all topics with the patterns.")
+            print("'print' toggles printing the messages.")
             print("'rmdir' removes entire folders of topics.")
             print("'reload' refreshes the topics.")
-            print("':exit', ':quit', ':q' or ctrl-c for program end.")
+            print("'select' offers you to select from last print.")
+            print("':exit', ':quit', ':q' , crtl-d or ctrl-c for program end.")
         if inputArray[0] in [":exit", ":quit", ":q"]:
             break
+        if inputArray[0] == 'select':
+            questions = [
+                inquirer.List(
+                    "input",
+                    message="What do you want to select?",
+                    choices=LAST_PRINTS,
+                ),
+            ]
+            PREFILL = inquirer.prompt(questions)['input']
+
         if len(inputArray) == 1 and not inputArray[0] =='':
+            LAST_PRINTS = []
             for option in client.data:
                 if inputArray[0] == option[:len(inputArray[0])]:
-                    print_topic_payload(client, option, client.data[option], skipCheck=('$' in inputArray[0]))
+                    result = print_topic_payload(client, option, client.data[option],
+                            skipCheck=('$' in inputArray[0]))
+                    if result != None:
+                        LAST_PRINTS.append(result)
         if inputArray[0] in client.data:
             if len(inputArray) > 1:
                 payload = ' '.join(inputArray[1:])
