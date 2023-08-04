@@ -54,9 +54,9 @@ parser.add_argument('-host', type=str, help='Host of MQTT Broker. Default: "loca
 parser.add_argument('-port', type=str, help='Port of MQTT Broker. Default: 1883')
 args = parser.parse_args()
 
-if args.host == None:
+if args.host is None:
     args.host = "localhost"
-if args.port == None:
+if args.port is None:
     args.port = 1883
 
 if sys.version_info[0] == 2:
@@ -217,35 +217,36 @@ try:
                 reload_func(client)
             else:
                 print("No topic given...")
-        if inputArray[0] == "find":
+        elif inputArray[0] in ['find', ':f']:
             if len(inputArray) > 1:
-                find_func(inputArray[1:], optionsArray, client)
+                if len(inputArray[1]) >1:
+                    find_func(inputArray[1:], optionsArray, client)
             else:
                 print("No search phrase given...")
-        if inputArray[0] == "reload":
+        elif inputArray[0] in ['reload', ':r']:
             reload_func(client)
-        if inputArray[0] == "backup":
+        elif inputArray[0] in ['backup', ':b']:
             with open('backup.json', 'w') as outfile:
                 json.dump(client.data, outfile, indent=4)
             print("Backuped data to 'backup.json'.")
-        if inputArray[0] == "print":
+        elif inputArray[0] == "print":
             print_change(client, inputArray)
-        if inputArray[0] == "":
+        elif inputArray[0] == "":
             print("")
-            print("Type 'help' for help.")
-        if inputArray[0] == "help":
+            print("Type 'help' of ':h' for help.")
+        elif inputArray[0] in ['help', ':h']:
             print("Read or modify directly MQTT topcis.")
             print("Use tab for auto completion.")
-            print("'backup' all data into 'backup.json'.")
-            print("'find' shows you all topics with the patterns.")
-            print("'print' toggles printing the messages.")
+            print("'backup', ':b' all data into 'backup.json'.")
+            print("'find', ':f' shows you all topics with the patterns.")
+            print("'print', ':p' toggles printing the messages.")
             print("'rmdir' removes entire folders of topics.")
-            print("'reload' refreshes the topics.")
-            print("'select' offers you to select from last print.")
-            print("':exit', ':quit', ':q' , crtl-d or ctrl-c for program end.")
-        if inputArray[0] in [":exit", ":quit", ":q"]:
+            print("'reload', ':r' refreshes the topics.")
+            print("'select', ':s' offers you to select from last print.")
+            print("'exit', 'quit', ':q' , crtl-d or ctrl-c for program end.")
+        elif inputArray[0] in ['exit', 'quit', ':q']:
             break
-        if inputArray[0] == 'select':
+        elif inputArray[0] in ['select', ':s']:
             questions = [
                 inquirer.List(
                     "input",
@@ -253,9 +254,8 @@ try:
                     choices=LAST_PRINTS,
                 ),
             ]
-            PREFILL = inquirer.prompt(questions)['input']
-
-        if len(inputArray) == 1 and not inputArray[0] =='':
+            PREFILL = inquirer.prompt(questions)['input'] + '/set '
+        elif len(inputArray) == 1 and not inputArray[0] =='':
             LAST_PRINTS = []
             for option in client.data:
                 if inputArray[0] == option[:len(inputArray[0])]:
@@ -263,7 +263,7 @@ try:
                             skipCheck=('$' in inputArray[0]))
                     if result != None:
                         LAST_PRINTS.append(result)
-        if inputArray[0] in client.data:
+        elif inputArray[0] in client.data:
             if len(inputArray) > 1:
                 payload = ' '.join(inputArray[1:])
                 if payload == '':
