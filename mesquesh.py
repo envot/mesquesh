@@ -247,22 +247,27 @@ try:
         elif inputArray[0] in ['exit', 'quit', ':q']:
             break
         elif inputArray[0] in ['select', ':s']:
-            questions = [
-                inquirer.List(
-                    "input",
-                    message="What do you want to select?",
-                    choices=LAST_PRINTS,
-                ),
-            ]
-            PREFILL = inquirer.prompt(questions)['input'] + '/set '
+            if len(LAST_PRINTS)>0:
+                questions = [
+                    inquirer.List(
+                        "input",
+                        message="What do you want to select?",
+                        choices=LAST_PRINTS,
+                    ),
+                ]
+                PREFILL = inquirer.prompt(questions)['input'] + '/set '
+            else:
+                print("No coiches available!")
         elif len(inputArray) == 1 and not inputArray[0] =='':
-            LAST_PRINTS = []
+            results = []
             for option in client.data:
                 if inputArray[0] == option[:len(inputArray[0])]:
                     result = print_topic_payload(client, option, client.data[option],
                             skipCheck=('$' in inputArray[0]))
                     if result != None:
-                        LAST_PRINTS.append(result)
+                        results.append(result)
+            if len(results) > 1:
+                LAST_PRINTS = results
         elif inputArray[0] in client.data:
             if len(inputArray) > 1:
                 payload = ' '.join(inputArray[1:])
