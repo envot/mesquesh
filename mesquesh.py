@@ -122,6 +122,7 @@ def rmdir_func(foldername, optionsArray, client):
     for option in optionsArray:
         if foldername == option[:len(foldername)]:
             client.publish(option, "", retain=True)
+    reload_func(client)
 
 def find_func(targetArray, optionsArray, client):
     global LAST_PRINTS
@@ -156,6 +157,16 @@ def print_change(client, inputArray):
             return True
         print('Could not handle:'+inputArray[1])
     print('Write "print on" or "print off" of "print $" for toogle $.')
+
+def publish_print(client, topic, payload):
+    if payload == '':
+        print('Remove '+color_text(topic,'green')+'.')
+    else:
+        print('Set '+color_text(topic,'green')
+            +' to '+color_text(payload,'red'))
+    client.publish(topic, payload, retain=True)
+    if payload == '':
+        reload_func(client)
 
 def reload_func(client):
     time.sleep(0.1)
@@ -214,7 +225,6 @@ try:
             if len(inputArray) > 1:
                 for topic2rm in inputArray[1:]:
                     rmdir_func(topic2rm, optionsArray, client)
-                reload_func(client)
             else:
                 print("No topic given...")
         elif inputArray[0] in ['find', ':f']:
@@ -243,6 +253,8 @@ try:
             print("'rmdir' removes entire folders of topics.")
             print("'reload', ':r' refreshes the topics.")
             print("'select', ':s' offers you to select from last print.")
+            print("'multiset', ':m' offers you to set all from last print"+
+                " at once. Starting with '/' you can extend the topic")
             print("'exit', 'quit', ':q' , crtl-d or ctrl-c for program end.")
         elif inputArray[0] in ['exit', 'quit', ':q']:
             break
@@ -257,7 +269,22 @@ try:
                 ]
                 PREFILL = inquirer.prompt(questions)['input'] + '/set '
             else:
-                print("No coiches available!")
+                print("No last prints available!")
+        elif inputArray[0] in ['multiset', ':m']:
+            if len(LAST_PRINTS)>0:
+                if len(inputArray) == 1:
+                    print("'multiset', ':m' offers you to set all from last print"+
+                        " at once. Starting with '/' you can extend the topic")
+                for topic in LAST_PRINTS:
+                    if len(inputArray) == 2:
+                        publish_print(client, topic, ' '.join(inputArray[1]))
+                    else:
+                        if inputArray[1][0] == '/':
+                            publish_print(client, topic+inputArray[1], ' '.join(inputArray[2:]))
+                        else:
+                            publish_print(client, topic, ' '.join(inputArray[1:]))
+            else:
+                print("No last prints available!")
         elif len(inputArray) == 1 and not inputArray[0] =='':
             results = []
             for option in client.data:
@@ -271,19 +298,10 @@ try:
         elif inputArray[0] in client.data:
             if len(inputArray) > 1:
                 payload = ' '.join(inputArray[1:])
-                if payload == '':
-                    print('Remove '+color_text(inputArray[0],'green')+'.')
-                else:
-                    print('Set '+color_text(inputArray[0],'green')
-                        +' to '+color_text(payload,'red'))
-                client.publish(inputArray[0], payload, retain=True)
-                if payload == '':
-                    reload_func(client)
+                publish_print(client, inputArray[0], payload)
         elif inputArray[0] not in optionsArray:
             if len(inputArray) > 1:
-                print('Create '+color_text(inputArray[0], 'green')
-                        +' with '+color_text(' '.join(inputArray[1:]), 'red'))
-                client.publish(inputArray[0], ' '.join(inputArray[1:]), retain=True)
+                publish_print(client, inputArray[0], ' '.join(inputArray[1:]))
 
 except KeyboardInterrupt:
     pass
