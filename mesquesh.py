@@ -8,6 +8,7 @@ import readline
 import time
 import argparse
 import sys
+import os
 import json
 import paho.mqtt.client as mqttClient
 
@@ -192,7 +193,7 @@ class MyCompleter(object):  # Custom completer
                             if not option[0:lenslash] in self.matches:
                                 self.matches.append(option[0:lenslash])
             else:  # no text entered, all matches possible
-                self.matches = ['help', 'rmdir', 'reload', 'print', 'backup']
+                self.matches = ['help', 'find', 'grafana', 'rmdir', 'reload', 'print', 'backup', 'select']
                 for option in self.options:
                     if not option.split('/')[0] in self.matches:
                         self.matches.append(option.split('/')[0])
@@ -210,7 +211,7 @@ readline.set_completer_delims(old_delims)
 
 try:
     while True:
-        optionsArray = ['help', 'find', 'rmdir', 'reload', 'print', 'backup', 'select']
+        optionsArray = ['help', 'find', 'grafana', 'rmdir', 'reload', 'print', 'backup', 'select']
         for i,val in enumerate(map(str, client.data.keys())):
             optionsArray.append(val)
 
@@ -233,6 +234,24 @@ try:
                     find_func(inputArray[1:], optionsArray, client)
             else:
                 print("No search phrase given...")
+        elif inputArray[0] in ['grafana', ':g']:
+            if len(LAST_PRINTS)>0:
+                questions = [
+                    inquirer.List(
+                        "input",
+                        message="What do you want to select?",
+                        choices=LAST_PRINTS,
+                    ),
+                ]
+                topic = inquirer.prompt(questions)['input']
+                topicArr = topic.split('/')
+                relTime = '1h'
+                if len(inputArray) > 1:
+                    if not inputArray[1] == '':
+                        relTime = inputArray[1]
+                print('Grafana link: '+os.environ['GRAFANALINK'] %(topicArr[0], topicArr[1], '%5C%2F'.join(topicArr[2:]), relTime))
+            else:
+                print("No last prints available!")
         elif inputArray[0] in ['reload', ':r']:
             reload_func(client)
         elif inputArray[0] in ['backup', ':b']:
@@ -249,6 +268,7 @@ try:
             print("Use tab for auto completion.")
             print("'backup', ':b' all data into 'backup.json'.")
             print("'find', ':f' shows you all topics with the patterns.")
+            print("'grafana', ':g' prints link to show history of selected topic in grafana.")
             print("'print', ':p' toggles printing the messages.")
             print("'rmdir' removes entire folders of topics.")
             print("'reload', ':r' refreshes the topics.")
