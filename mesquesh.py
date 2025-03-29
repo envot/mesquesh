@@ -272,9 +272,11 @@ try:
             print("'print', ':p' toggles printing the messages.")
             print("'rmdir' removes entire folders of topics.")
             print("'reload', ':r' refreshes the topics.")
-            print("'select', ':s' offers you to select from last print.")
+            print("'select', ':s' offers you to select from last print."+
+                  " Use arrows or j and k to navigate.")
             print("'multiset', ':m' offers you to set all from last print"+
-                " at once. Starting with '/' you can extend the topic")
+                  " at once. Starting with '/' you can extend the topic"+
+                  " so use ':m /set <value>' to set multi homie parameters")
             print("'exit', 'quit', ':q' , crtl-d or ctrl-c for program end.")
         elif inputArray[0] in ['exit', 'quit', ':q']:
             break
@@ -297,7 +299,7 @@ try:
                         " at once. Starting with '/' you can extend the topic")
                 for topic in LAST_PRINTS:
                     if len(inputArray) == 2:
-                        publish_print(client, topic, ' '.join(inputArray[1]))
+                        publish_print(client, topic, inputArray[1])
                     else:
                         if inputArray[1][0] == '/':
                             publish_print(client, topic+inputArray[1], ' '.join(inputArray[2:]))
